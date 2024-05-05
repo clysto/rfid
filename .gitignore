@@ -1,0 +1,4 @@
+__pycache__
+*.cf32
+*.f32
+.DS_Store
