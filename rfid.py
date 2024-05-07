@@ -1,8 +1,55 @@
 import numpy as np
-from crc5 import crc5
+from struct import pack
 
 # A preamble shall comprise a fixed-length start delimiter 12.5us +/-5%
 DELIM_DURATION = 12
+
+
+def crc5(bits: list):
+    crc = [1, 0, 0, 1, 0]
+
+    for i in range(len(bits)):
+        tmp = [0, 0, 0, 0, 0]
+        tmp[4] = crc[3]
+
+        if crc[4] == 1:
+            if bits[i] == 1:
+                tmp[0] = 0
+                tmp[1] = crc[0]
+                tmp[2] = crc[1]
+                tmp[3] = crc[2]
+            else:
+                tmp[0] = 1
+                tmp[1] = crc[0]
+                tmp[2] = crc[1]
+                tmp[3] = 0 if crc[2] == 1 else 1
+        else:
+            if bits[i] == 1:
+                tmp[0] = 1
+                tmp[1] = crc[0]
+                tmp[2] = crc[1]
+                tmp[3] = 0 if crc[2] == 1 else 1
+            else:
+                tmp[0] = 0
+                tmp[1] = crc[0]
+                tmp[2] = crc[1]
+                tmp[3] = crc[2]
+
+        crc[:] = tmp
+
+    return crc[::-1]
+
+
+def ebv_encode(bits: list[int]) -> list[int]:
+    n_pad = (len(bits) + 6) // 7 * 7 - len(bits)
+    bits = [0] * n_pad + bits
+    n_block = len(bits) // 7
+    encoded = []
+    for n in range(n_block):
+        extension_bit = 1 if n < n_block - 1 else 0
+        block = [extension_bit] + bits[n * 7 : (n + 1) * 7]
+        encoded.extend(block)
+    return encoded
 
 
 class PulseIntervalEncoder:
@@ -52,6 +99,67 @@ class RFIDReaderCommand:
     def __init__(self, pie: PulseIntervalEncoder):
         self.pie = pie
 
+    def select(
+        self,
+        pointer: int,
+        length: int,
+        mask: list[int],
+        trunc: bool = False,
+        target: str = "sl",
+        action: int = 0,
+        mem_bank: str = "FileType",
+    ):
+        bits = [1, 0, 1, 0]
+        if target not in ["inv-s0", "inv-s1", "inv-s2", "inv-s3", "sl"]:
+            raise ValueError(
+                "Invalid target value. Must be either 'inv-s0', 'inv-s1', 'inv-s2', 'inv-s3', or 'sl'."
+            )
+        if target == "inv-s0":
+            bits += [0, 0, 0]
+        elif target == "inv-s1":
+            bits += [0, 0, 1]
+        elif target == "inv-s2":
+            bits += [0, 1, 0]
+        elif target == "inv-s3":
+            bits += [0, 1, 1]
+        else:
+            bits += [1, 0, 0]
+
+        if action < 0 or action > 7:
+            raise ValueError("Invalid action value. Must be between 0 and 7.")
+
+        bits += list(map(int, format(action, "03b")))
+
+        if mem_bank not in ["FileType", "EPC", "TID", "File_0"]:
+            raise ValueError(
+                "Invalid mem_bank value. Must be either 'FileType', 'EPC', 'TID', or 'File_0'."
+            )
+        if mem_bank == "FileType":
+            bits += [0, 0]
+        elif mem_bank == "EPC":
+            bits += [0, 1]
+        elif mem_bank == "TID":
+            bits += [1, 0]
+        else:
+            bits += [1, 1]
+
+        bits += ebv_encode(list(map(int, bin(pointer)[2:])))
+        if length < 0 or length > 255:
+            raise ValueError("Invalid length value. Must be between 0 and 255.")
+        bits += list(map(int, format(length, "08b")))
+        if len(mask) != length:
+            raise ValueError("Mask length must match the specified length.")
+        bits += mask
+
+        if trunc:
+            bits += [1]
+        else:
+            bits += [0]
+
+        # TODO: append CRC-16
+
+        return self.pie.frame_sync() + self.pie.encode(bits)
+
     def query(
         self,
         dr: str = "8",
@@ -63,7 +171,7 @@ class RFIDReaderCommand:
         q: int = 0,
     ):
         """
-        Queries the RFID device with the specified parameters.
+        Query initiates and specifies an inventory round.
 
         Args:
             dr (str): The TRcal divide ratio. It can be either "8" or "64/3".
@@ -75,7 +183,7 @@ class RFIDReaderCommand:
             q (int): The number of slots in the round.
 
         Returns:
-            bytes: The encoded query result.
+            sig: The encoded query command waveform.
         """
 
         bits = [1, 0, 0, 0]
@@ -139,8 +247,36 @@ class RFIDReaderCommand:
         dr = 8 if dr == "8" else 64 / 3
         return self.pie.preamble(dr=dr) + self.pie.encode(bits)
 
+    def query_rep(self, session: str = "s0"):
+        """
+        QueryRep instructs Tags to decrement their slot counters.
+
+        Args:
+            session (str): The session value to use for the query. Must be one of the following: 's0', 's1', 's2', or 's3'. Defaults to 's0'.
+
+        Returns:
+            sig: The encoded query command waveform.
+        """
+        bits = [0, 0]
+        if session not in ["s0", "s1", "s2", "s3"]:
+            raise ValueError(
+                "Invalid session value. Must be either 's0', 's1', 's2', or 's3'."
+            )
+
+        if session == "s0":
+            bits += [0, 0]
+        elif session == "s1":
+            bits += [0, 1]
+        elif session == "s2":
+            bits += [1, 0]
+        else:
+            bits += [1, 1]
+
+        return self.pie.frame_sync() + self.pie.encode(bits)
+
 
 pie = PulseIntervalEncoder(samp_rate=2e6)
 reader = RFIDReaderCommand(pie)
-sig = reader.query()
+sig = reader.query(q=1) + [1] * 2500 + reader.query_rep() + [1] * 2500
 np.array(sig).astype(np.float32).tofile("reader.f32")
+
