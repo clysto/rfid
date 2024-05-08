@@ -1,6 +1,3 @@
-import numpy as np
-from struct import pack
-
 # A preamble shall comprise a fixed-length start delimiter 12.5us +/-5%
 DELIM_DURATION = 12
 
@@ -38,6 +35,10 @@ def crc5(bits: list):
         crc[:] = tmp
 
     return crc[::-1]
+
+
+def crc16(bits: list):
+    pass
 
 
 def ebv_encode(bits: list[int]) -> list[int]:
@@ -273,10 +274,3 @@ class RFIDReaderCommand:
             bits += [1, 1]
 
         return self.pie.frame_sync() + self.pie.encode(bits)
-
-
-pie = PulseIntervalEncoder(samp_rate=2e6)
-reader = RFIDReaderCommand(pie)
-sig = reader.query(q=1) + [1] * 2500 + reader.query_rep() + [1] * 2500
-np.array(sig).astype(np.float32).tofile("reader.f32")
-
