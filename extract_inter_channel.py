@@ -28,9 +28,9 @@ def extract_rn16_frames(sig, n_max_gap, n_t1, n_rn16, frame_cv_threshoud=0.04):
         pkt = sig[start:end]
         frames.append(pkt)
     frames = np.array(frames)
-    cv = np.std(np.abs(frames), axis=-1) / np.mean(np.abs(frames), axis=-1)
-    idx = np.argwhere(cv >= frame_cv_threshoud).reshape(-1)
-    frames = frames[idx, :]
+    # cv = np.std(np.abs(frames), axis=-1) / np.mean(np.abs(frames), axis=-1)
+    # idx = np.argwhere(cv >= frame_cv_threshoud).reshape(-1)
+    # frames = frames[idx, :]
     return frames
 
 
@@ -78,6 +78,8 @@ def cluster_samples(samples: np.ndarray):
 
 def plot_result(result, expected_center):
     plt.figure()
+    # plt.xlim(-1, 1)
+    # plt.ylim(-1, 1)
     plt.scatter(result["ll"].real, result["ll"].imag, marker=".")
     plt.scatter(result["lh"].real, result["lh"].imag, marker=".")
     plt.scatter(result["hl"].real, result["hl"].imag, marker=".")
@@ -88,23 +90,25 @@ def plot_result(result, expected_center):
 
 
 if __name__ == "__main__":
-    sig = np.fromfile("static.cf32", dtype=np.complex64)
-    rn16_frames = extract_rn16_frames(sig, n_max_gap=440, n_t1=470, n_rn16=1250)
+    sig = np.fromfile("rx.cf32", dtype=np.complex64)
+    rn16_frames = extract_rn16_frames(
+        sig, n_max_gap=440, n_t1=470, n_rn16=1250, frame_cv_threshoud=0.005
+    )
     inter_channels = []
-    for i in range(0, len(rn16_frames), 16):
-        samples = symbol_samples(rn16_frames[i : i + 16].reshape(-1))
-        result = cluster_samples(samples)
-        bs_1 = result["lh_center"] - result["ll_center"]
-        bs_2 = result["hl_center"] - result["ll_center"]
-        expected_center = (bs_1 + bs_2) + result["ll_center"]
-        inter_channels.append(expected_center - result["hh_center"])
-        print("")
-        print("  mag:", np.abs(expected_center - result["hh_center"]))
-        print("phase:", np.angle(expected_center - result["hh_center"]))
-    fig, ax1 = plt.subplots()
-    ax1.plot(np.abs(inter_channels), color="C0")
-    ax1.set_ylabel("Magnitude", color="C0")
-    ax2 = ax1.twinx() 
-    ax2.plot(np.unwrap(np.angle(inter_channels)), color="C1")
-    ax2.set_ylabel("Phase", color="C1")
-    plt.show()
+    samples = symbol_samples(rn16_frames[:8].reshape(-1))
+    result = cluster_samples(samples)
+    bs_1 = result["lh_center"] - result["ll_center"]
+    bs_2 = result["hl_center"] - result["ll_center"]
+    expected_center = (bs_1 + bs_2) + result["ll_center"]
+    inter_channels.append(expected_center - result["hh_center"])
+    print("")
+    print("  mag:", np.abs(expected_center - result["hh_center"]))
+    print("phase:", np.angle(expected_center - result["hh_center"]))
+    plot_result(result, expected_center)
+    # fig, ax1 = plt.subplots()
+    # ax1.plot(np.abs(inter_channels), color="C0")
+    # ax1.set_ylabel("Magnitude", color="C0")
+    # ax2 = ax1.twinx()
+    # ax2.plot(np.unwrap(np.angle(inter_channels)), color="C1")
+    # ax2.set_ylabel("Phase", color="C1")
+    # plt.show()
