@@ -41,8 +41,8 @@ def frame_sync(frame):
     return frame, h_est
 
 
-def cluster_frame(frame: np.ndarray):
-    dbscan = DBSCAN(eps=0.02, min_samples=50)
+def cluster_frame(frame: np.ndarray, eps=0.02):
+    dbscan = DBSCAN(eps, min_samples=50)
     centers = np.full(4, np.nan, dtype=complex)
     clusters = dbscan.fit_predict(np.array([frame.real, frame.imag]).T)
     if np.max(clusters) != 3:
