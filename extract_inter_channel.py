@@ -1,8 +1,12 @@
-import numpy as np
-from dpc import DPC
-import matplotlib.pyplot as plt
-from scipy import signal
 import sys
+
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+from scipy import signal
+from tqdm import tqdm
+
+from dpc import DPC
 
 
 def extract_rn16_frames(sig, n_max_gap, n_t1, n_rn16):
@@ -40,7 +44,7 @@ def extract_rn16_frames(sig, n_max_gap, n_t1, n_rn16):
 def frame_sync(frame):
     preamble = np.repeat([1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1], 25) + 0j
     corr = np.abs(signal.correlate(frame[: len(preamble) + 100], preamble, "same"))
-    frame_start = np.argmax(corr) - 6 * 25
+    frame_start = max(0, np.argmax(corr) - 6 * 25)
     frame = frame[frame_start:]
     h_est = np.mean(frame[np.argwhere(preamble == 1)])
     return frame, h_est
@@ -67,34 +71,72 @@ def calc_inter_channel(centers):
     return inter_channel
 
 
-if __name__ == "__main__":
-    sig_file = sys.argv[1]
-    frame_index = sys.argv[2]
-    sig = np.fromfile(sig_file, dtype=np.complex64)
-    rn16_frames, rn16_frames_dc = extract_rn16_frames(
-        sig, n_max_gap=440, n_t1=470, n_rn16=1250
-    )
-
-    frame = rn16_frames[int(frame_index)]
-    frame -= rn16_frames_dc[int(frame_index)]
-    frame, h_est = frame_sync(frame)
-    frame /= h_est
-
+def process_one_frame(frame, plot=False):
     labels, centers = cluster_frame(frame)
     inter_channel = calc_inter_channel(centers)
     centers_sorted = centers[np.argsort(np.abs(centers))]
     center_expected = centers_sorted[3] + inter_channel
 
-    print(np.abs(inter_channel * np.abs(h_est)))
-    print(np.angle(inter_channel))
+    if plot:
+        plt.figure()
+        plt.plot(np.real(frame))
+        plt.plot(np.imag(frame))
+        plt.show(block=False)
 
-    plt.figure()
-    plt.gca().set_aspect("equal", adjustable="box")
-    plt.scatter(
-        frame[labels == -1].real, frame[labels == -1].imag, color="gray", alpha=0.2
-    )
-    for i in range(4):
-        plt.scatter(frame[labels == i].real, frame[labels == i].imag, alpha=0.2)
-    plt.scatter(centers.real, centers.imag, color="blue")
-    plt.scatter(center_expected.real, center_expected.imag, color="red")
-    plt.show()
+        plt.figure()
+        plt.gca().set_aspect("equal", adjustable="box")
+        plt.xlim(-1.5, 1.5)
+        plt.ylim(-1.5, 1.5)
+        plt.xlabel("In-phase")
+        plt.ylabel("Quadrature")
+        plt.scatter(
+            frame[labels == -1].real, frame[labels == -1].imag, color="gray", alpha=0.2
+        )
+        for i in range(4):
+            plt.scatter(frame[labels == i].real, frame[labels == i].imag, alpha=0.2)
+        plt.scatter(centers.real, centers.imag, color="blue")
+        plt.scatter(center_expected.real, center_expected.imag, color="red")
+        plt.show()
+
+    return inter_channel
+
+
+if __name__ == "__main__":
+    if len(sys.argv) == 3:
+        sig_file = sys.argv[1]
+        frame_index = sys.argv[2]
+        sig = np.fromfile(sig_file, dtype=np.complex64)
+        rn16_frames, rn16_frames_dc = extract_rn16_frames(
+            sig, n_max_gap=440, n_t1=470, n_rn16=1250
+        )
+        frame = rn16_frames[int(frame_index)]
+        frame -= rn16_frames_dc[int(frame_index)]
+        frame, h_est = frame_sync(frame)
+        frame /= h_est
+        inter_channel = process_one_frame(frame, plot=True)
+        print(np.abs(inter_channel * np.abs(h_est)))
+        print(np.angle(inter_channel))
+    elif len(sys.argv) == 2:
+        sig_file = sys.argv[1]
+        sig = np.fromfile(sig_file, dtype=np.complex64)
+        rn16_frames, rn16_frames_dc = extract_rn16_frames(
+            sig, n_max_gap=440, n_t1=470, n_rn16=1250
+        )
+        inter_channels = []
+        for i in tqdm(range(len(rn16_frames))):
+            frame = rn16_frames[i]
+            dc = rn16_frames_dc[i]
+            frame, h_est = frame_sync(frame - dc)
+            frame /= h_est
+            inter_channel = process_one_frame(frame)
+            inter_channels.append(inter_channel * np.abs(h_est))
+
+        plt.figure()
+        plt.xlabel("Inter-channel amplitude")
+        sns.kdeplot(np.abs(inter_channels), fill=True)
+        plt.show(block=False)
+
+        plt.figure()
+        plt.xlabel("Inter-channel phase")
+        sns.kdeplot(np.angle(inter_channels), fill=True)
+        plt.show()
