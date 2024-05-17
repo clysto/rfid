@@ -1,7 +1,8 @@
 import numpy as np
-from sklearn.cluster import DBSCAN
+from dpc import DPC
 import matplotlib.pyplot as plt
 from scipy import signal
+import sys
 
 
 def extract_rn16_frames(sig, n_max_gap, n_t1, n_rn16):
@@ -16,20 +17,24 @@ def extract_rn16_frames(sig, n_max_gap, n_t1, n_rn16):
 
     Returns:
     - frames (numpy.ndarray): Extracted RN16 frames.
+    - frames_dc (numpy.ndarray): Estimated DC component of each frame.
     """
     idx = np.argwhere(np.abs(sig) < 0.05).reshape(-1)
     idx = idx[np.argwhere(np.diff(idx) > n_max_gap).reshape(-1)]
     bs_start = idx + n_t1
     bs_end = bs_start + n_rn16
     frames = []
+    frames_dc = []
     for start, end in zip(bs_start, bs_end):
         if start >= len(sig) or end >= len(sig):
             continue
+        pkt = sig[start:end]
         dc_est = np.mean(sig[start - 200 : start])
-        pkt = sig[start:end] - dc_est
         frames.append(pkt)
+        frames_dc.append(dc_est)
     frames = np.array(frames)
-    return frames
+    frames_dc = np.array(frames_dc)
+    return frames, frames_dc
 
 
 def frame_sync(frame):
@@ -41,15 +46,13 @@ def frame_sync(frame):
     return frame, h_est
 
 
-def cluster_frame(frame: np.ndarray, eps=0.02):
-    dbscan = DBSCAN(eps, min_samples=50)
-    centers = np.full(4, np.nan, dtype=complex)
-    clusters = dbscan.fit_predict(np.array([frame.real, frame.imag]).T)
-    if np.max(clusters) != 3:
-        raise Exception("Expected 4 clusters, found {}".format(np.max(clusters) + 1))
+def cluster_frame(frame: np.ndarray):
+    dpc = DPC(n_clusters=4, filter_halo=True)
+    labels = dpc.fit_predict(frame)
+    centers = np.full(np.max(labels) + 1, np.nan, dtype=complex)
     for i in range(4):
-        centers[i] = np.mean(frame[clusters == i])
-    return clusters, centers
+        centers[i] = np.mean(frame[labels == i])
+    return labels, centers
 
 
 def calc_inter_channel(centers):
@@ -65,29 +68,33 @@ def calc_inter_channel(centers):
 
 
 if __name__ == "__main__":
-    sig = np.fromfile("rx.cf32", dtype=np.complex64)
-    rn16_frames = extract_rn16_frames(sig, n_max_gap=440, n_t1=470, n_rn16=1250)
+    sig_file = sys.argv[1]
+    frame_index = sys.argv[2]
+    sig = np.fromfile(sig_file, dtype=np.complex64)
+    rn16_frames, rn16_frames_dc = extract_rn16_frames(
+        sig, n_max_gap=440, n_t1=470, n_rn16=1250
+    )
 
-    for frame in rn16_frames:
-        frame, h_est = frame_sync(frame)
-        frame /= h_est
-        try:
-            clusters, centers = cluster_frame(frame)
-        except Exception as e:
-            print(e)
-            continue
-        centers_sorted = centers[np.argsort(np.abs(centers))]
-        symbols = frame[clusters >= 0]
-        inter_channel = calc_inter_channel(centers)
-        center_expected = centers_sorted[3] + inter_channel
-        # print(np.abs(inter_channel * np.abs(h_est)))
-        print(np.angle(inter_channel))
+    frame = rn16_frames[int(frame_index)]
+    frame -= rn16_frames_dc[int(frame_index)]
+    frame, h_est = frame_sync(frame)
+    frame /= h_est
+
+    labels, centers = cluster_frame(frame)
+    inter_channel = calc_inter_channel(centers)
+    centers_sorted = centers[np.argsort(np.abs(centers))]
+    center_expected = centers_sorted[3] + inter_channel
+
+    print(np.abs(inter_channel * np.abs(h_est)))
+    print(np.angle(inter_channel))
 
     plt.figure()
-    plt.xlim(-1.2, 1.2)
-    plt.ylim(-1.2, 1.2)
     plt.gca().set_aspect("equal", adjustable="box")
-    plt.scatter(symbols.real, symbols.imag, color="gray")
-    plt.scatter(centers.real, centers.imag, c="red")
-    plt.scatter(center_expected.real, center_expected.imag, c="blue")
+    plt.scatter(
+        frame[labels == -1].real, frame[labels == -1].imag, color="gray", alpha=0.2
+    )
+    for i in range(4):
+        plt.scatter(frame[labels == i].real, frame[labels == i].imag, alpha=0.2)
+    plt.scatter(centers.real, centers.imag, color="blue")
+    plt.scatter(center_expected.real, center_expected.imag, color="red")
     plt.show()

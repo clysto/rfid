@@ -42,7 +42,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [197.5, 10.75]
+    coordinate: [152, 8.0]
     rotation: 0
     state: enabled
 - name: blocks_file_sink_0
@@ -52,7 +52,7 @@ blocks:
     alias: ''
     append: 'False'
     comment: ''
-    file: rx.cf32
+    file: f"{out}_A.cf32"
     type: complex
     unbuffered: 'False'
     vlen: '1'
@@ -60,7 +60,61 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [956.25, 451.25]
+    coordinate: [568, 340.0]
+    rotation: 0.0
+    state: enabled
+- name: blocks_file_sink_0_0
+  id: blocks_file_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    append: 'False'
+    comment: ''
+    file: 2.dat
+    type: complex
+    unbuffered: 'False'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [982.5, 570.0]
+    rotation: 0.0
+    state: disabled
+- name: blocks_file_sink_0_1
+  id: blocks_file_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    append: 'False'
+    comment: ''
+    file: 2.cf32
+    type: complex
+    unbuffered: 'False'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [672, 436.0]
+    rotation: 0.0
+    state: disabled
+- name: blocks_file_sink_0_2
+  id: blocks_file_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    append: 'False'
+    comment: ''
+    file: f"{out}_B.cf32"
+    type: complex
+    unbuffered: 'False'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [568, 420.0]
     rotation: 0.0
     state: enabled
 - name: blocks_file_source_0
@@ -82,7 +136,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [40.0, 232.5]
+    coordinate: [56, 176.0]
     rotation: 0.0
     state: enabled
 - name: blocks_float_to_complex_0
@@ -98,10 +152,46 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [405.0, 247.5]
+    coordinate: [224, 196.0]
     rotation: 0.0
     state: enabled
 - name: blocks_head_0
+  id: blocks_head
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: int(samp_rate * duration)
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [416, 348.0]
+    rotation: 0.0
+    state: enabled
+- name: blocks_head_0_0
+  id: blocks_head
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: int(samp_rate * (duration + 0.2))
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [392, 212.0]
+    rotation: 0.0
+    state: enabled
+- name: blocks_head_0_1
   id: blocks_head
   parameters:
     affinity: ''
@@ -116,10 +206,10 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [675.0, 596.25]
+    coordinate: [616, 564.0]
     rotation: 0.0
-    state: enabled
-- name: blocks_head_0_0
+    state: disabled
+- name: blocks_head_0_2
   id: blocks_head
   parameters:
     affinity: ''
@@ -127,14 +217,32 @@ blocks:
     comment: ''
     maxoutbuf: '0'
     minoutbuf: '0'
-    num_items: int(samp_rate * 0.06)
+    num_items: int(samp_rate * 0.05)
     type: complex
     vlen: '1'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [681.25, 266.25]
+    coordinate: [488, 436.0]
+    rotation: 0.0
+    state: disabled
+- name: blocks_head_0_3
+  id: blocks_head
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: int(samp_rate * duration)
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [416, 428.0]
     rotation: 0.0
     state: enabled
 - name: blocks_skiphead_0
@@ -152,7 +260,95 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [400.0, 475.0]
+    coordinate: [272, 348.0]
+    rotation: 0.0
+    state: enabled
+- name: blocks_skiphead_0_0
+  id: blocks_skiphead
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: int(samp_rate * 0.003)
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [344, 556.0]
+    rotation: 0.0
+    state: disabled
+- name: blocks_skiphead_0_1
+  id: blocks_skiphead
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: int(samp_rate * 0.003)
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [320, 452.0]
+    rotation: 0.0
+    state: disabled
+- name: blocks_skiphead_0_2
+  id: blocks_skiphead
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: int(samp_rate * 0.003)
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [272, 428.0]
+    rotation: 0.0
+    state: enabled
+- name: duration
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Duration
+    short_id: ''
+    type: eng_float
+    value: '0.1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [480, 8.0]
+    rotation: 0.0
+    state: enabled
+- name: out
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Output Name
+    short_id: ''
+    type: str
+    value: rx
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [384, 8.0]
     rotation: 0.0
     state: enabled
 - name: rx_gain
@@ -169,7 +365,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [303.75, 16.25]
+    coordinate: [224, 8.0]
     rotation: 0.0
     state: enabled
 - name: tx_gain
@@ -181,12 +377,12 @@ blocks:
     label: Tx Gain
     short_id: ''
     type: intx
-    value: '80'
+    value: '20'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [407.5, 17.5]
+    coordinate: [304, 8.0]
     rotation: 0.0
     state: enabled
 - name: uhd_usrp_sink_0
@@ -449,7 +645,7 @@ blocks:
     start_time: '-1.0'
     stream_args: ''
     stream_chans: '[]'
-    sync: sync
+    sync: pc_clock
     time_source0: ''
     time_source1: ''
     time_source2: ''
@@ -463,7 +659,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [973.75, 208.75]
+    coordinate: [568, 176.0]
     rotation: 0.0
     state: enabled
 - name: uhd_usrp_source_0
@@ -471,7 +667,7 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    ant0: '"TX/RX"'
+    ant0: '"RX2"'
     ant1: '"RX2"'
     ant10: '"RX2"'
     ant11: '"RX2"'
@@ -536,7 +732,7 @@ blocks:
     bw8: '0'
     bw9: '0'
     center_freq0: 910e6
-    center_freq1: '0'
+    center_freq1: 910e6
     center_freq10: '0'
     center_freq11: '0'
     center_freq12: '0'
@@ -610,7 +806,7 @@ blocks:
     dc_offs8: 0+0j
     dc_offs9: 0+0j
     dc_offs_enb0: disabled
-    dc_offs_enb1: default
+    dc_offs_enb1: disabled
     dc_offs_enb10: default
     dc_offs_enb11: default
     dc_offs_enb12: default
@@ -644,7 +840,7 @@ blocks:
     dev_addr: '""'
     dev_args: ''
     gain0: rx_gain
-    gain1: '0'
+    gain1: rx_gain
     gain10: '0'
     gain11: '0'
     gain12: '0'
@@ -739,7 +935,7 @@ blocks:
     iq_imbal7: 0+0j
     iq_imbal8: 0+0j
     iq_imbal9: 0+0j
-    iq_imbal_enb0: disabled
+    iq_imbal_enb0: default
     iq_imbal_enb1: default
     iq_imbal_enb10: default
     iq_imbal_enb11: default
@@ -837,7 +1033,7 @@ blocks:
     lo_source9: internal
     maxoutbuf: '0'
     minoutbuf: '0'
-    nchan: '1'
+    nchan: '2'
     num_mboards: '1'
     otw: ''
     rx_agc0: Default
@@ -873,7 +1069,7 @@ blocks:
     rx_agc8: Default
     rx_agc9: Default
     samp_rate: samp_rate
-    sd_spec0: A:B
+    sd_spec0: ''
     sd_spec1: ''
     sd_spec2: ''
     sd_spec3: ''
@@ -885,7 +1081,7 @@ blocks:
     start_time: '-1.0'
     stream_args: ''
     stream_chans: '[]'
-    sync: sync
+    sync: pc_clock
     time_source0: ''
     time_source1: ''
     time_source2: ''
@@ -899,7 +1095,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [65.0, 442.5]
+    coordinate: [48, 332.0]
     rotation: 0.0
     state: enabled
 
@@ -908,8 +1104,15 @@ connections:
 - [blocks_float_to_complex_0, '0', blocks_head_0_0, '0']
 - [blocks_head_0, '0', blocks_file_sink_0, '0']
 - [blocks_head_0_0, '0', uhd_usrp_sink_0, '0']
+- [blocks_head_0_1, '0', blocks_file_sink_0_0, '0']
+- [blocks_head_0_2, '0', blocks_file_sink_0_1, '0']
+- [blocks_head_0_3, '0', blocks_file_sink_0_2, '0']
 - [blocks_skiphead_0, '0', blocks_head_0, '0']
+- [blocks_skiphead_0_0, '0', blocks_head_0_1, '0']
+- [blocks_skiphead_0_1, '0', blocks_head_0_2, '0']
+- [blocks_skiphead_0_2, '0', blocks_head_0_3, '0']
 - [uhd_usrp_source_0, '0', blocks_skiphead_0, '0']
+- [uhd_usrp_source_0, '1', blocks_skiphead_0_2, '0']
 
 metadata:
   file_format: 1
