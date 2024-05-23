@@ -82,7 +82,7 @@ class rfid_query(gr.top_block):
         self.blocks_head_0_0 = blocks.head(gr.sizeof_gr_complex*1, (int(samp_rate * (duration + 0.2))))
         self.blocks_head_0 = blocks.head(gr.sizeof_gr_complex*1, (int(samp_rate * duration)))
         self.blocks_float_to_complex_0 = blocks.float_to_complex(1)
-        self.blocks_file_source_0 = blocks.file_source(gr.sizeof_float*1, 'reader.f32', True, 0, 0)
+        self.blocks_file_source_0 = blocks.file_source(gr.sizeof_float*1, 'data/reader.f32', True, 0, 0)
         self.blocks_file_source_0.set_begin_tag(pmt.PMT_NIL)
         self.blocks_file_sink_0 = blocks.file_sink(gr.sizeof_gr_complex*1, out, False)
         self.blocks_file_sink_0.set_unbuffered(False)

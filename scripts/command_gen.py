@@ -1,5 +1,5 @@
 import numpy as np
-from rfid import PulseIntervalEncoder, RFIDReaderCommand
+from lib.rfid import PulseIntervalEncoder, RFIDReaderCommand
 
 if __name__ == "__main__":
     pie = PulseIntervalEncoder(samp_rate=2e6)

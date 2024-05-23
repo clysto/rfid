@@ -39,17 +39,17 @@ class DPC(ClusterMixin, BaseEstimator):
         # set delta of the point with highest density to the maximum delta
         self.deltas_[ordrho[0]] = np.max(self.deltas_)
 
-        index_center = np.argsort(-self.rhos_ * self.deltas_)[: self.n_clusters]
+        self.index_centers_ = np.argsort(-self.rhos_ * self.deltas_)[: self.n_clusters]
         self.labels_ = np.full(N, -1, dtype=np.intp)
+        self.cluster_centers_ = X[self.index_centers_]
 
-        for i, center in enumerate(index_center):
-            self.labels_[center] = i
+        self.labels_[self.index_centers_] = np.arange(self.n_clusters)
         for i, index in enumerate(ordrho):
             if self.labels_[index] == -1:
                 self.labels_[index] = self.labels_[int(nearest_neighbors[index])]
         if self.filter_halo:
             self.labels_[self.deltas_ > self.dc] = -1
-            for i, center in enumerate(index_center):
+            for i, center in enumerate(self.index_centers_):
                 self.labels_[center] = i
         return self
 
