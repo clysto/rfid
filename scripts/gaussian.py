@@ -33,7 +33,6 @@ plt.ylabel("Mag (scaled)")
 plt.scatter(np.angle(sig), np.abs(sig) * scale, marker="x")
 
 plt.tight_layout()
-plt.savefig("tone.svg", bbox_inches="tight")
 plt.show()
 
 

@@ -292,7 +292,7 @@ blocks:
     bw7: '0'
     bw8: '0'
     bw9: '0'
-    center_freq0: 910e6
+    center_freq0: 900e6
     center_freq1: '0'
     center_freq10: '0'
     center_freq11: '0'
@@ -569,7 +569,7 @@ blocks:
     bw7: '0'
     bw8: '0'
     bw9: '0'
-    center_freq0: 910e6
+    center_freq0: 900e6
     center_freq1: 910e6
     center_freq10: '0'
     center_freq11: '0'

@@ -5,7 +5,7 @@ import numpy as np
 import seaborn as sns
 from scipy import signal
 from scipy.stats import multivariate_normal
-from tqdm import tqdm
+from rich.progress import track
 
 
 def extract_rn16_frames(sig, n_max_gap, n_t1, n_rn16):
@@ -77,28 +77,22 @@ def cluster_frame(frame: np.ndarray, cov: np.ndarray, plot=False):
         deltas[index] = np.min(dists[index, index_higher_rho])
         deltas[ordrho[0]] = np.max(deltas)
 
-    # cons = np.zeros(N)
-    # w = 25
-    # for i in range(N):
-    #     for j in range(int(i - w / 2), int(i + w / 2)):
-    #         if j < 0 or j >= N:
-    #             continue
-    #         cons[i] += 1 if dists[i, j] < dc else 0
-    # cons /= w
-
     idx1 = np.argsort(-rhos * deltas)
     idx2 = idx1[np.argwhere(rhos[idx1] > 10).flatten()]
-    # print(idx1)
-    # index_centers = np.delete(idx2, idx1)[:4]
     index_centers = idx2[:4]
-    # index_centers = np.argsort(-rhos * deltas)[:4]
+
     centers = frame[index_centers]
 
     if plot:
         plt.figure()
         plt.scatter(rhos, deltas, color="gray")
         plt.scatter(
-            rhos[index_centers], deltas[index_centers], c=[4, 3, 2, 1], cmap="Oranges", vmin=-1, s=60
+            rhos[index_centers],
+            deltas[index_centers],
+            c=[4, 3, 2, 1],
+            cmap="Oranges",
+            vmin=-1,
+            s=60,
         )
         plt.xlabel("$\\rho$")
         plt.ylabel("$\\delta$")
@@ -117,6 +111,15 @@ def cluster_frame(frame: np.ndarray, cov: np.ndarray, plot=False):
     return labels, index_centers
 
 
+def sort_centers(centers, dc_mean, h_est):
+    idx = np.arange(0, 4)
+    index_ll = np.argmin(np.abs(centers - dc_mean))
+    index_hh = np.argmin(np.abs(centers - h_est))
+    idx = np.delete(idx, [index_ll, index_hh])
+    idx = np.hstack(([index_ll], idx, [index_hh]))
+    return centers[idx]
+
+
 def calc_inter_channel(centers):
     inter_channel = (
         centers[1] - centers[0] + centers[2] - centers[0] - (centers[3] - centers[0])
@@ -130,13 +133,16 @@ def process_one_frame(frame, dc, plot=False):
     phase_var = np.var(np.angle(dc))
     cov = np.array([[mag_var, 0], [0, phase_var]])
 
-    frame_start, _ = frame_sync(frame - dc_mean)
+    frame_start, h_est = frame_sync(frame - dc_mean)
+    h_est += dc_mean
     frame = frame[frame_start:]
 
-    labels, index_centers = cluster_frame(frame, cov, plot)
-    centers = frame[index_centers]
+    labels, _ = cluster_frame(frame, cov, plot)
+    centers = np.zeros(4, dtype=np.complex64)
+    for i in range(4):
+        centers[i] = np.mean(frame[labels == i])
 
-    centers_sorted = centers[np.argsort(np.abs(frame[index_centers] - dc_mean))]
+    centers_sorted = sort_centers(centers, dc_mean, h_est)
     inter_channel = calc_inter_channel(centers_sorted)
     center_expected = centers_sorted[3] + inter_channel
 
@@ -158,7 +164,7 @@ def process_one_frame(frame, dc, plot=False):
                 marker=".",
                 alpha=0.2,
             )
-        plt.scatter(centers.real, centers.imag, color="blue")
+        plt.scatter(centers_sorted.real, centers_sorted.imag, color="blue")
         plt.scatter(center_expected.real, center_expected.imag, color="red")
         plt.show()
 
@@ -185,7 +191,7 @@ if __name__ == "__main__":
             sig, n_max_gap=440, n_t1=470, n_rn16=1250
         )
         inter_channels = []
-        for i in tqdm(range(len(rn16_frames))):
+        for i in track(range(len(rn16_frames))):
             frame = rn16_frames[i]
             dc = rn16_frames_dc[i]
             inter_channel = process_one_frame(frame, dc)

@@ -16,7 +16,7 @@ def extract_rn16_frames(sig, n_max_gap, n_t1, n_rn16):
     - frames (numpy.ndarray): Extracted RN16 frames.
     - frames_dc (numpy.ndarray): Estimated DC component of each frame.
     """
-    idx = np.argwhere(np.abs(sig) < 0.05).reshape(-1)
+    idx = np.argwhere(np.abs(sig) < 0.005).reshape(-1)
     idx = idx[np.argwhere(np.diff(idx) > n_max_gap).reshape(-1)]
     bs_start = idx + n_t1
     bs_end = bs_start + n_rn16
