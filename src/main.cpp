@@ -61,7 +61,8 @@ class BivariateNormal {
   double norm_const;
 };
 
-void processing_rn16(const std::deque<gr_complex> &frame, const std::deque<gr_complex> &dc_samples) {
+void processing_rn16(const std::deque<gr_complex> &frame, const std::deque<gr_complex> &dc_samples, gr_complex dc_est,
+                     gr_complex h_est) {
   int N = frame.size();
   auto logger = std::make_shared<gr::logger>("processing_rn16");
   Eigen::MatrixXd mag_phase(N, 2);
@@ -85,8 +86,6 @@ void processing_rn16(const std::deque<gr_complex> &frame, const std::deque<gr_co
   double phase_var = (dc_mag_phase.col(1).array() - phase_mean).square().sum() / (dc_mag_phase.rows() - 1);
 
   double scale = mag_var / phase_var;
-
-  std::cout << mag_var << ", " << phase_var << std::endl;
 
   // 计算距离矩阵
   auto mag_diff = mag_phase.col(0).replicate(1, N) - mag_phase.col(0).transpose().replicate(N, 1);
@@ -137,17 +136,20 @@ void processing_rn16(const std::deque<gr_complex> &frame, const std::deque<gr_co
   std::vector<int> centers_index(4);
   int i = 0;
   int j = 0;
-  while (j <= 4) {
+  while (j < 4) {
     if (rhos[ordlambdas[i]] > config::CENTER_MIN_RHO) {
       centers_index[j++] = ordlambdas[i];
     }
     i++;
   }
 
+  gr_complex centers[4] = {0, 0, 0, 0};
+  int nsamples[4] = {0, 0, 0, 0};
+
   // 使用高斯分布进行聚类
   std::vector<int> labels(N);
   auto norm = BivariateNormal(mag_var, phase_var);
-#pragma omp parallel for
+#pragma omp parallel for reduction(+ : centers[ : 4], nsamples[ : 4])
   for (int i = 0; i < N; i++) {
     double max_pdf = -1;
     int label = -1;
@@ -158,12 +160,50 @@ void processing_rn16(const std::deque<gr_complex> &frame, const std::deque<gr_co
         label = j;
       }
     }
-    labels[i] = max_pdf > config::CLUSTER_MIN_PROB ? label : -1;
+    // 计算聚类中心
+    if (max_pdf > config::CLUSTER_MIN_PROB) {
+      labels[i] = label;
+      centers[label] += frame[i];
+      nsamples[label]++;
+    } else {
+      labels[i] = -1;
+    }
   }
-  for (int i = 0; i < N; i++) {
-    std::cout << labels[i] << ",";
+
+  // 计算 LL, HH, LH, HL
+  int ll_index = -1, hh_index = -1, lh_index = -1, hl_index = -1;
+  float ll_dist = std::numeric_limits<float>::max();
+  float hh_dist = std::numeric_limits<float>::max();
+
+  for (int i = 0; i < 4; i++) {
+    centers[i] /= nsamples[i];
+    // 和 dc_est 最近的点为 LL
+    if (std::abs(centers[i] - dc_est) < ll_dist) {
+      ll_dist = std::abs(centers[i] - dc_est);
+      ll_index = i;
+    }
+    // 和 h_est 最近的点为 HH
+    if (std::abs(centers[i] - h_est) < hh_dist) {
+      hh_dist = std::abs(centers[i] - h_est);
+      hh_index = i;
+    }
   }
-  exit(0);
+  // 剩下的两个点分别为 LH 和 HL
+  for (int i = 0; i < 4; i++) {
+    if (i != ll_index && i != hh_index) {
+      if (lh_index == -1) {
+        lh_index = i;
+      } else if (hl_index == -1) {
+        hl_index = i;
+      }
+    }
+  }
+
+  // 计算互感向量
+  gr_complex s_int = (centers[lh_index] - centers[ll_index]) + (centers[hl_index] - centers[ll_index]) -
+                     (centers[hh_index] - centers[ll_index]);
+
+  logger->info("s_int: mag={} phase={}", std::abs(s_int), std::arg(s_int));
 }
 
 class my_block : public gr::block {
@@ -173,6 +213,7 @@ class my_block : public gr::block {
   level_t d_signal_level = HIGH;
   int d_pulse_nsamples = 0;
   gr_complex d_dc_est = 0;
+  gr_complex d_h_est = 0;
   float d_corr = 0;
   int d_corr_index = 0;
   int d_rn16_start_index = 0;
@@ -239,8 +280,8 @@ class my_block : public gr::block {
           if (d_rn16_frame.size() >= d_corr_index + d_preamble_samples.size()) {
             gr_complex corr = 0;
 #pragma omp parallel for reduction(+ : corr)
-            for (int j = d_corr_index; j < d_corr_index + d_preamble_samples.size(); j++) {
-              corr += (d_rn16_frame[j] - d_dc_est) * d_preamble_samples[j];
+            for (int j = 0; j < d_preamble_samples.size(); j++) {
+              corr += (d_rn16_frame[d_corr_index + j] - d_dc_est) * d_preamble_samples[j];
             }
             d_corr_index++;
             if (std::abs(corr) > d_corr) {
@@ -249,7 +290,19 @@ class my_block : public gr::block {
             }
           }
 
+          // 同步到 RN16 帧的前导码
           if (d_corr_index >= config::CORRELATION_LEN) {
+            // 计算信道估计 h_est
+            d_h_est = 0;
+            int ones_in_preamble = 0;
+            for (int j = 0; j < config::FM0_PREAMBLE_LEN; j++) {
+              if (config::FM0_PREAMBLE[j] == 1) {
+                d_h_est += d_rn16_frame[d_rn16_start_index + j * config::SPS + config::SPS / 2];
+                ones_in_preamble++;
+              }
+            }
+            d_h_est /= gr_complex(ones_in_preamble, 0);
+
             d_rn16_frame.erase(d_rn16_frame.begin(), d_rn16_frame.begin() + d_rn16_start_index);
             d_status = PROCESSING_RN16;
             d_logger->info("================ RN16 Frame ================");
@@ -264,7 +317,7 @@ class my_block : public gr::block {
           } else {
             d_logger->info("end_index: {}", i + nitems_read(0));
 
-            processing_rn16(d_rn16_frame, d_dc_samples);
+            processing_rn16(d_rn16_frame, d_dc_samples, d_dc_est, d_h_est);
 
             d_signal_level = HIGH;
             d_pulse_count = 0;

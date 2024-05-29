@@ -135,7 +135,7 @@ def process_one_frame(frame, dc, plot=False):
 
     frame_start, h_est = frame_sync(frame - dc_mean)
     h_est += dc_mean
-    frame = frame[frame_start:]
+    # frame = frame[frame_start:]
 
     labels, _ = cluster_frame(frame, cov, plot)
     centers = np.zeros(4, dtype=np.complex64)
