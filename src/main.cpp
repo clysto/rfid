@@ -18,9 +18,13 @@ const float PULSE_THRESHOLD = 0.02;  // The threshold value for detecting pulses
 const int READER_MIN_PULSES = 5;     // The minimum number of pulses required for a valid reader signal.
 const int N_PULSE_WIDTH = 24;        // pw = 12us = 24 samples @ 2e6 samp/s
 const int N_T1 = 460;
-const int N_RN16_FRAME = 1250;
+const int N_RN16_FRAME = 1150;      // (12 + 32) * 25 = 1100 samples
 const double CENTER_MIN_RHO = 10;   // The minimum rho value for a center to be considered valid.
 const double CLUSTER_MIN_PROB = 1;  // The minimum probability for a sample to be considered as a valid.
+const int SPS = 25;
+const int FM0_PREAMBLE[] = {1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1};
+const int FM0_PREAMBLE_LEN = 12;
+const int CORRELATION_LEN = 100;
 }  // namespace config
 
 enum level_t {
@@ -30,6 +34,7 @@ enum level_t {
 
 enum status_t {
   SEEK_READER_COMMAND,
+  SYNC_RN16,
   PROCESSING_RN16,
 };
 
@@ -56,7 +61,7 @@ class BivariateNormal {
   double norm_const;
 };
 
-void processing_rn16(const std::vector<gr_complex> &frame, const std::deque<gr_complex> &dc_samples) {
+void processing_rn16(const std::deque<gr_complex> &frame, const std::deque<gr_complex> &dc_samples) {
   int N = frame.size();
   auto logger = std::make_shared<gr::logger>("processing_rn16");
   Eigen::MatrixXd mag_phase(N, 2);
@@ -167,20 +172,32 @@ class my_block : public gr::block {
   int d_pulse_count = 0;
   level_t d_signal_level = HIGH;
   int d_pulse_nsamples = 0;
-  std::vector<gr_complex> d_rn16_frame = std::vector<gr_complex>(config::N_RN16_FRAME);
+  gr_complex d_dc_est = 0;
+  float d_corr = 0;
+  int d_corr_index = 0;
+  int d_rn16_start_index = 0;
+  std::deque<gr_complex> d_rn16_frame = std::deque<gr_complex>(config::N_RN16_FRAME);
   std::deque<gr_complex> d_dc_samples = std::deque<gr_complex>();
+  std::vector<gr_complex> d_preamble_samples = std::vector<gr_complex>();
 
  public:
   typedef std::shared_ptr<my_block> sptr;
 
   static sptr make() { return gnuradio::make_block_sptr<my_block>(); }
 
-  my_block() : gr::block("my_block", gr::io_signature::make(0, -1, 8), gr::io_signature::make(0, 0, 0)) {}
+  my_block() : gr::block("my_block", gr::io_signature::make(0, -1, 8), gr::io_signature::make(0, 0, 0)) {
+    for (int i = 0; i < config::FM0_PREAMBLE_LEN; i++) {
+      for (int j = 0; j < config::SPS; j++) {
+        d_preamble_samples.push_back(gr_complex(config::FM0_PREAMBLE[i], 0));
+      }
+    }
+  }
 
   int general_work(int noutput_items, gr_vector_int &ninput_items, gr_vector_const_void_star &input_items,
                    gr_vector_void_star &output_items) {
     gr_complex *in = (gr_complex *)input_items[0];
     float sample_ampl;
+    int consumed = 0;
     for (int i = 0; i < ninput_items[0]; i++) {
       switch (d_status) {
         case SEEK_READER_COMMAND:
@@ -207,10 +224,38 @@ class my_block : public gr::block {
           }
           if (d_pulse_nsamples > config::N_T1 && d_signal_level == HIGH && d_pulse_count > config::READER_MIN_PULSES) {
             d_rn16_frame.clear();
+            d_corr = 0;
+            d_corr_index = 0;
+            d_rn16_start_index = 0;
+            d_dc_est = std::accumulate(d_dc_samples.begin(), d_dc_samples.end(), gr_complex(0, 0)) /
+                       gr_complex(d_dc_samples.size(), 0);
+            d_status = SYNC_RN16;
+          }
+          break;
+
+        case SYNC_RN16:
+          d_rn16_frame.push_back(in[i]);
+
+          if (d_rn16_frame.size() >= d_corr_index + d_preamble_samples.size()) {
+            gr_complex corr = 0;
+#pragma omp parallel for reduction(+ : corr)
+            for (int j = d_corr_index; j < d_corr_index + d_preamble_samples.size(); j++) {
+              corr += (d_rn16_frame[j] - d_dc_est) * d_preamble_samples[j];
+            }
+            d_corr_index++;
+            if (std::abs(corr) > d_corr) {
+              d_corr = std::abs(corr);
+              d_rn16_start_index = d_corr_index;
+            }
+          }
+
+          if (d_corr_index >= config::CORRELATION_LEN) {
+            d_rn16_frame.erase(d_rn16_frame.begin(), d_rn16_frame.begin() + d_rn16_start_index);
             d_status = PROCESSING_RN16;
             d_logger->info("================ RN16 Frame ================");
-            d_logger->info("start_index: {}", i + nitems_read(0) + 1);
+            d_logger->info("start_index: {}", i + nitems_read(0) - d_rn16_frame.size() + 1);
           }
+
           break;
 
         case PROCESSING_RN16:
