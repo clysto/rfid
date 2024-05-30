@@ -74,6 +74,7 @@ int rfid_block::general_work(int noutput_items, gr_vector_int &ninput_items, gr_
           // 计算信道估计 h_est
           d_h_est = 0;
           int ones_in_preamble = 0;
+#pragma omp parallel for reduction(+ : d_h_est, ones_in_preamble)
           for (int j = 0; j < config::FM0_PREAMBLE_LEN; j++) {
             if (config::FM0_PREAMBLE[j] == 1) {
               d_h_est += d_rn16_frame[d_rn16_start_index + j * config::SPS + config::SPS / 2];

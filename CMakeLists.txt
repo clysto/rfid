@@ -32,3 +32,19 @@ target_link_libraries(track_inter_channel
     Eigen3::Eigen
     OpenMP::OpenMP_CXX
 )
+
+find_package(pybind11 REQUIRED)
+pybind11_add_module(extract_inter_channel
+    src/global.cpp
+    src/global.hpp
+    src/extract_inter_channel.cpp
+    src/extract_inter_channel.hpp
+    src/python/extract_inter_channel_python.cpp
+)
+target_link_libraries(extract_inter_channel
+    PRIVATE
+    gnuradio::gnuradio-runtime
+    spdlog::spdlog
+    Eigen3::Eigen
+    OpenMP::OpenMP_CXX
+)
