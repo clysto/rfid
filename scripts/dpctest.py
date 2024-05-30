@@ -1,4 +1,4 @@
-from lib.dpc import DPC
+from dpc import DPC
 import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt

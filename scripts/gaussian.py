@@ -6,7 +6,7 @@ from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 
 plt.rcParams["font.size"] = 14
 
-sig = np.fromfile("data/tone.cf32", dtype=np.complex64)[:1000]
+sig = np.fromfile("data/old/tone.cf32", dtype=np.complex64)[:1000]
 mag_var = np.var(np.abs(sig))
 phase_var = np.var(np.angle(sig))
 mag_mean = np.mean(np.abs(sig))

@@ -4,4 +4,6 @@ __pycache__
 *.dat
 .DS_Store
 /data
-/src/main
+*build*
+.cache
+.vscode
