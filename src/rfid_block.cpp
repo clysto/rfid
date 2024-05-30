@@ -97,7 +97,8 @@ int rfid_block::general_work(int noutput_items, gr_vector_int &ninput_items, gr_
         } else {
           d_logger->info("end_index: {}", i + nitems_read(0));
 
-          extract_inter_channel(d_rn16_frame, d_dc_samples, d_dc_est, d_h_est);
+          auto s_int = extract_inter_channel(d_rn16_frame, d_dc_samples, d_dc_est, d_h_est);
+          d_logger->info("s_int: mag={} phase={}", std::abs(s_int), std::arg(s_int));
 
           d_signal_level = HIGH;
           d_pulse_count = 0;

@@ -1,11 +1,12 @@
 # %%
 import numpy as np
-from utils import extract_rn16_frames
+from utils import extract_rn16_frames, frame_sync
 import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
 from pathlib import Path
 from scipy.stats import iqr
+from extract_inter_channel_cxx import extract_inter_channel
 
 from extract_inter_channel import process_one_frame
 
@@ -14,7 +15,7 @@ sns.set_theme(font_scale=1.4)
 files = []
 
 for i in range(8, 13):
-    files.append(Path(__file__).parent.parent / f"data/2024-05-27/{i}cm.cf32")
+    files.append(Path(__file__).parent.parent / f"data/2024-05-27/40cm/{i}cm.cf32")
 
 # %%
 h_all = []
@@ -28,8 +29,16 @@ for file in files:
     for i in tqdm(range(len(rn16_frames))):
         frame = rn16_frames[i]
         dc = rn16_frames_dc[i]
-        inter_channel = process_one_frame(frame, dc)
-        h.append(inter_channel)
+        # inter_channel = process_one_frame(frame, dc)
+        # h.append(inter_channel)
+        dc_est = np.mean(rn16_frames_dc)
+        frame_start, h_est = frame_sync(frame - np.mean(dc))
+        h_est += np.mean(dc)
+        frame = frame[frame_start : frame_start + 1150]
+        assert len(frame) == 1150
+        s_int = extract_inter_channel(frame, dc, dc_est, h_est)
+        h.append(s_int)
+
     h_all.append(h)
 
 # %%

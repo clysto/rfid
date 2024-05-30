@@ -1,6 +1,5 @@
 #include "extract_inter_channel.hpp"
 
-#include <gnuradio/logger.h>
 #include <omp.h>
 
 #include <algorithm>
@@ -26,10 +25,9 @@ double BivariateNormal::pdf(const Eigen::Vector2d &x, const Eigen::Vector2d &mea
   return pdf_value;
 }
 
-void extract_inter_channel(const std::deque<gr_complex> &frame, const std::deque<gr_complex> &dc_samples, gr_complex dc_est,
-                     gr_complex h_est) {
+gr_complex extract_inter_channel(const std::deque<gr_complex> &frame, const std::deque<gr_complex> &dc_samples,
+                                 gr_complex dc_est, gr_complex h_est) {
   int N = frame.size();
-  auto logger = std::make_shared<gr::logger>("extract_inter_channel");
   Eigen::MatrixXd mag_phase(N, 2);
   Eigen::MatrixXd dc_mag_phase(dc_samples.size(), 2);
 #pragma omp parallel for
@@ -168,5 +166,5 @@ void extract_inter_channel(const std::deque<gr_complex> &frame, const std::deque
   gr_complex s_int = (centers[lh_index] - centers[ll_index]) + (centers[hl_index] - centers[ll_index]) -
                      (centers[hh_index] - centers[ll_index]);
 
-  logger->info("s_int: mag={} phase={}", std::abs(s_int), std::arg(s_int));
+  return s_int;
 }
