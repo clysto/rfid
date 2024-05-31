@@ -1,3 +1,6 @@
+import re
+from epc_crc import crc16
+
 # A preamble shall comprise a fixed-length start delimiter 12.5us +/-5%
 DELIM_DURATION = 12
 
@@ -37,10 +40,6 @@ def crc5(bits: list):
     return crc[::-1]
 
 
-def crc16(bits: list):
-    pass
-
-
 def ebv_encode(bits: list[int]) -> list[int]:
     n_pad = (len(bits) + 6) // 7 * 7 - len(bits)
     bits = [0] * n_pad + bits
@@ -56,6 +55,13 @@ def ebv_encode(bits: list[int]) -> list[int]:
 class PulseIntervalEncoder:
 
     def __init__(self, samp_rate, pw_d=12):
+        """
+        Initializes an instance of the PulseIntervalEncoder class.
+
+        Args:
+            samp_rate (int): The sample rate in Hz.
+            pw_d (int, optional): The pulse width duration in us. Defaults to 12us.
+        """
         self.samp_rate = samp_rate
         self.pw_d = pw_d
         self.n_data0 = int(2 * pw_d * 1e-6 * samp_rate)
@@ -157,7 +163,7 @@ class RFIDReaderCommand:
         else:
             bits += [0]
 
-        # TODO: append CRC-16
+        bits += crc16(bits)
 
         return self.pie.frame_sync() + self.pie.encode(bits)
 
@@ -274,3 +280,19 @@ class RFIDReaderCommand:
             bits += [1, 1]
 
         return self.pie.frame_sync() + self.pie.encode(bits)
+
+
+def epc_str_to_bits(epc: str) -> list[int]:
+    """
+    Converts a hexadecimal EPC string to a list of bits.
+    `epc_str_to_bits` will ignore any whitespace in the EPC string.
+
+    Args:
+        epc (str): The hexadecimal EPC string.
+
+    Returns:
+        list[int]: A list of bits representing the EPC.
+    """
+    epc = epc.strip()
+    epc = re.sub(r"\s+", "", epc)
+    return list(map(int, "".join(format(int(c, 16), "04b") for c in epc)))
