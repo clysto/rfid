@@ -1,43 +1,9 @@
 import re
-from epc_crc import crc16
+
+from epc_crc import crc5, crc16
 
 # A preamble shall comprise a fixed-length start delimiter 12.5us +/-5%
 DELIM_DURATION = 12
-
-
-def crc5(bits: list):
-    crc = [1, 0, 0, 1, 0]
-
-    for i in range(len(bits)):
-        tmp = [0, 0, 0, 0, 0]
-        tmp[4] = crc[3]
-
-        if crc[4] == 1:
-            if bits[i] == 1:
-                tmp[0] = 0
-                tmp[1] = crc[0]
-                tmp[2] = crc[1]
-                tmp[3] = crc[2]
-            else:
-                tmp[0] = 1
-                tmp[1] = crc[0]
-                tmp[2] = crc[1]
-                tmp[3] = 0 if crc[2] == 1 else 1
-        else:
-            if bits[i] == 1:
-                tmp[0] = 1
-                tmp[1] = crc[0]
-                tmp[2] = crc[1]
-                tmp[3] = 0 if crc[2] == 1 else 1
-            else:
-                tmp[0] = 0
-                tmp[1] = crc[0]
-                tmp[2] = crc[1]
-                tmp[3] = crc[2]
-
-        crc[:] = tmp
-
-    return crc[::-1]
 
 
 def ebv_encode(bits: list[int]) -> list[int]:
@@ -278,6 +244,44 @@ class RFIDReaderCommand:
             bits += [1, 0]
         else:
             bits += [1, 1]
+
+        return self.pie.frame_sync() + self.pie.encode(bits)
+
+    def query_adjust(self, session: str = "s0", updn: str = "="):
+        """
+        QueryAdjust instructs Tags to adjust their slot counters.
+
+        Args:
+            session (str): The session value to use for the query. Must be one of the following: 's0', 's1', 's2', or 's3'. Defaults to 's0'.
+            updn (str): The direction of the adjustment. Must be either '=', '+' or '-'. Defaults to '='.
+
+        Returns:
+            sig: The encoded query command waveform.
+        """
+        bits = [1, 0, 0, 1]
+        if session not in ["s0", "s1", "s2", "s3"]:
+            raise ValueError(
+                "Invalid session value. Must be either 's0', 's1', 's2', or 's3'."
+            )
+
+        if session == "s0":
+            bits += [0, 0]
+        elif session == "s1":
+            bits += [0, 1]
+        elif session == "s2":
+            bits += [1, 0]
+        else:
+            bits += [1, 1]
+
+        if updn not in ["=", "+", "-"]:
+            raise ValueError("Invalid updn value. Must be either '=', '+' or '-'.")
+
+        if updn == "=":
+            bits += [0, 0, 0]
+        elif updn == "+":
+            bits += [1, 1, 0]
+        else:
+            bits += [0, 1, 1]
 
         return self.pie.frame_sync() + self.pie.encode(bits)
 

@@ -172,6 +172,23 @@ blocks:
     coordinate: [480, 8.0]
     rotation: 0.0
     state: enabled
+- name: freq
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Frequency
+    short_id: ''
+    type: eng_float
+    value: 900e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [560, 8.0]
+    rotation: 0.0
+    state: enabled
 - name: out
   id: parameter
   parameters:
@@ -292,7 +309,7 @@ blocks:
     bw7: '0'
     bw8: '0'
     bw9: '0'
-    center_freq0: 900e6
+    center_freq0: freq
     center_freq1: '0'
     center_freq10: '0'
     center_freq11: '0'
@@ -569,7 +586,7 @@ blocks:
     bw7: '0'
     bw8: '0'
     bw9: '0'
-    center_freq0: 900e6
+    center_freq0: freq
     center_freq1: 910e6
     center_freq10: '0'
     center_freq11: '0'

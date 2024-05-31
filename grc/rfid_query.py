@@ -27,13 +27,14 @@ import time
 
 class rfid_query(gr.top_block):
 
-    def __init__(self, duration=0.1, out='rx.cf32', rx_gain=0, tx_gain=20):
+    def __init__(self, duration=0.1, freq=900e6, out='rx.cf32', rx_gain=0, tx_gain=20):
         gr.top_block.__init__(self, "Query RFID", catch_exceptions=True)
 
         ##################################################
         # Parameters
         ##################################################
         self.duration = duration
+        self.freq = freq
         self.out = out
         self.rx_gain = rx_gain
         self.tx_gain = tx_gain
@@ -59,7 +60,7 @@ class rfid_query(gr.top_block):
         self.uhd_usrp_source_0.set_samp_rate(samp_rate)
         self.uhd_usrp_source_0.set_time_now(uhd.time_spec(time.time()), uhd.ALL_MBOARDS)
 
-        self.uhd_usrp_source_0.set_center_freq(900e6, 0)
+        self.uhd_usrp_source_0.set_center_freq(freq, 0)
         self.uhd_usrp_source_0.set_antenna("RX2", 0)
         self.uhd_usrp_source_0.set_gain(rx_gain, 0)
         self.uhd_usrp_source_0.set_auto_dc_offset(False, 0)
@@ -75,7 +76,7 @@ class rfid_query(gr.top_block):
         self.uhd_usrp_sink_0.set_samp_rate(samp_rate)
         self.uhd_usrp_sink_0.set_time_now(uhd.time_spec(time.time()), uhd.ALL_MBOARDS)
 
-        self.uhd_usrp_sink_0.set_center_freq(900e6, 0)
+        self.uhd_usrp_sink_0.set_center_freq(freq, 0)
         self.uhd_usrp_sink_0.set_antenna("TX/RX", 0)
         self.uhd_usrp_sink_0.set_gain(tx_gain, 0)
         self.blocks_skiphead_0 = blocks.skiphead(gr.sizeof_gr_complex*1, (int(samp_rate * 0.003)))
@@ -106,6 +107,14 @@ class rfid_query(gr.top_block):
         self.duration = duration
         self.blocks_head_0.set_length((int(self.samp_rate * self.duration)))
         self.blocks_head_0_0.set_length((int(self.samp_rate * (self.duration + 0.2))))
+
+    def get_freq(self):
+        return self.freq
+
+    def set_freq(self, freq):
+        self.freq = freq
+        self.uhd_usrp_sink_0.set_center_freq(self.freq, 0)
+        self.uhd_usrp_source_0.set_center_freq(self.freq, 0)
 
     def get_out(self):
         return self.out
@@ -147,6 +156,9 @@ def argument_parser():
         "--duration", dest="duration", type=eng_float, default=eng_notation.num_to_str(float(0.1)),
         help="Set Duration [default=%(default)r]")
     parser.add_argument(
+        "--freq", dest="freq", type=eng_float, default=eng_notation.num_to_str(float(900e6)),
+        help="Set Frequency [default=%(default)r]")
+    parser.add_argument(
         "--out", dest="out", type=str, default='rx.cf32',
         help="Set Output Name [default=%(default)r]")
     parser.add_argument(
@@ -161,7 +173,7 @@ def argument_parser():
 def main(top_block_cls=rfid_query, options=None):
     if options is None:
         options = argument_parser().parse_args()
-    tb = top_block_cls(duration=options.duration, out=options.out, rx_gain=options.rx_gain, tx_gain=options.tx_gain)
+    tb = top_block_cls(duration=options.duration, freq=options.freq, out=options.out, rx_gain=options.rx_gain, tx_gain=options.tx_gain)
 
     def sig_handler(sig=None, frame=None):
         tb.stop()
