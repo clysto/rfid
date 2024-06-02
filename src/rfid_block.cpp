@@ -3,9 +3,8 @@
 #include <algorithm>
 #include <numeric>
 
-#include "extract_inter_channel.hpp"
-
-rfid_block::rfid_block() : gr::block("rfid_block", gr::io_signature::make(0, -1, 8), gr::io_signature::make(0, 0, 0)) {
+rfid_block::rfid_block(callback_t cb)
+    : gr::block("rfid_block", gr::io_signature::make(0, -1, 8), gr::io_signature::make(0, 0, 0)), d_callback(cb) {
   for (int i = 0; i < config::FM0_PREAMBLE_LEN; i++) {
     for (int j = 0; j < config::SPS; j++) {
       d_preamble_samples.push_back(gr_complex(config::FM0_PREAMBLE[i], 0));
@@ -97,8 +96,7 @@ int rfid_block::general_work(int noutput_items, gr_vector_int &ninput_items, gr_
         } else {
           d_logger->info("end_index: {}", i + nitems_read(0));
 
-          auto s_int = extract_inter_channel(d_rn16_frame, d_dc_samples, d_dc_est, d_h_est);
-          d_logger->info("s_int: mag={} phase={}", std::abs(s_int), std::arg(s_int));
+          d_callback(d_rn16_frame, d_dc_samples, d_dc_est, d_h_est);
 
           d_signal_level = HIGH;
           d_pulse_count = 0;

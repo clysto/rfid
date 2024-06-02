@@ -2,7 +2,12 @@
 
 #include <gnuradio/block.h>
 
+#include <functional>
+
 #include "global.hpp"
+
+typedef std::function<void(const std::deque<gr_complex> &, const std::deque<gr_complex> &, gr_complex, gr_complex)>
+    callback_t;
 
 enum level_t {
   LOW,
@@ -26,6 +31,7 @@ class rfid_block : public gr::block {
   float d_corr = 0;
   int d_corr_index = 0;
   int d_rn16_start_index = 0;
+  callback_t d_callback;
   std::deque<gr_complex> d_rn16_frame = std::deque<gr_complex>(config::N_RN16_FRAME);
   std::deque<gr_complex> d_dc_samples = std::deque<gr_complex>();
   std::vector<gr_complex> d_preamble_samples = std::vector<gr_complex>();
@@ -33,9 +39,9 @@ class rfid_block : public gr::block {
  public:
   typedef std::shared_ptr<rfid_block> sptr;
 
-  static sptr make() { return gnuradio::make_block_sptr<rfid_block>(); }
+  static sptr make(callback_t cb) { return gnuradio::make_block_sptr<rfid_block>(cb); }
 
-  rfid_block();
+  rfid_block(callback_t cb);
 
   int general_work(int noutput_items, gr_vector_int &ninput_items, gr_vector_const_void_star &input_items,
                    gr_vector_void_star &output_items);

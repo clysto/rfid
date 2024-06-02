@@ -13,9 +13,10 @@ find_package(Gnuradio "3.10" REQUIRED COMPONENTS analog blocks digital fft filte
 find_package(spdlog REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(OpenMP REQUIRED)
+find_package(ZLIB)
 
 add_executable(track_inter_channel
-    src/main.cpp
+    src/track_inter_channel.cpp
     src/global.cpp
     src/global.hpp
     src/rfid_block.cpp
@@ -31,6 +32,24 @@ target_link_libraries(track_inter_channel
     spdlog::spdlog
     Eigen3::Eigen
     OpenMP::OpenMP_CXX
+)
+
+add_executable(split_rn16
+    src/split_rn16.cpp
+    src/global.cpp
+    src/global.hpp
+    src/rfid_block.cpp
+    src/rfid_block.hpp
+    src/cnpy.cpp
+    src/cnpy.hpp
+)
+
+target_link_libraries(split_rn16
+    gnuradio::gnuradio-runtime
+    gnuradio::gnuradio-blocks
+    gnuradio::gnuradio-digital
+    OpenMP::OpenMP_CXX
+    ZLIB::ZLIB
 )
 
 find_package(pybind11 REQUIRED)
