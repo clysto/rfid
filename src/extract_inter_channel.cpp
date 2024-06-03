@@ -46,9 +46,16 @@ gr_complex extract_inter_channel(const std::deque<gr_complex> &frame, const std:
   double scale = mag_var / phase_var;
 
   // 计算距离矩阵
-  auto mag_diff = frame_xcd.replicate(1, N).abs() - frame_xcd.transpose().replicate(N, 1).abs();
-  auto phase_diff = (frame_xcd.replicate(1, N) * frame_xcd.transpose().replicate(N, 1).conjugate()).arg();
-  auto dists = (mag_diff.square() + scale * phase_diff.square()).sqrt();
+  Eigen::ArrayXXd dists(N, N);
+
+#pragma omp parallel for
+  for (int i = 0; i < N; ++i) {
+    for (int j = 0; j < N; ++j) {
+      auto mag_diff = std::abs(frame_xcd[i]) - std::abs(frame_xcd[j]);
+      auto phase_diff = std::arg(frame_xcd[i] * std::conj(frame_xcd[j]));
+      dists(i, j) = std::sqrt(mag_diff * mag_diff + scale * phase_diff * phase_diff);
+    }
+  }
 
   // 自动计算截断距离 dc
   int position = static_cast<int>(N * (N - 1) * 0.02);
