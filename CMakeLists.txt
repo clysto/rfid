@@ -42,12 +42,16 @@ add_executable(split_rn16
     src/rfid_block.hpp
     src/cnpy.cpp
     src/cnpy.hpp
+    src/extract_inter_channel.cpp
+    src/extract_inter_channel.hpp
 )
 
 target_link_libraries(split_rn16
     gnuradio::gnuradio-runtime
     gnuradio::gnuradio-blocks
     gnuradio::gnuradio-digital
+    spdlog::spdlog
+    Eigen3::Eigen
     OpenMP::OpenMP_CXX
     ZLIB::ZLIB
 )

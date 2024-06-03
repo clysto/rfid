@@ -21,14 +21,14 @@ def reader_cmd_gen(samp_rate=2e6, filter="all") -> np.ndarray:
     else:
         filter = filter.split(",")
         filter = [int(tag_id) for tag_id in filter]
-        for tag_id in filter:
+        for index, tag_id in enumerate(filter):
             sig += (
                 reader.select(
                     pointer=32,
                     length=96,
                     mask=epc_str_to_bits(TAGS[tag_id]),
                     mem_bank="EPC",
-                    action=1,
+                    action=0 if index == 0 else 1,
                 )
                 + [1] * 300
             )

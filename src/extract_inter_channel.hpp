@@ -9,7 +9,7 @@ class BivariateNormal {
  public:
   BivariateNormal(double variance1, double variance2);
 
-  double pdf(const Eigen::Vector2d &x, const Eigen::Vector2d &mean) const;
+  double pdf(const Eigen::Vector2d &x) const;
 
  private:
   Eigen::Vector2d variances;

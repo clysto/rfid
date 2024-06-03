@@ -18,42 +18,37 @@ BivariateNormal::BivariateNormal(double variance1, double variance2) : variances
   norm_const = 1.0 / (2.0 * M_PI * std::sqrt(variance1 * variance2));
 }
 
-double BivariateNormal::pdf(const Eigen::Vector2d &x, const Eigen::Vector2d &mean) const {
-  Eigen::Vector2d diff = x - mean;
-  double exponent = -0.5 * (diff.array() * diff.array() / variances.array()).sum();
+double BivariateNormal::pdf(const Eigen::Vector2d &x) const {
+  double exponent = -0.5 * (x.array() * x.array() / variances.array()).sum();
   double pdf_value = norm_const * std::exp(exponent);
   return pdf_value;
 }
 
 gr_complex extract_inter_channel(const std::deque<gr_complex> &frame, const std::deque<gr_complex> &dc_samples,
                                  gr_complex dc_est, gr_complex h_est) {
-  int N = frame.size();
-  Eigen::MatrixXd mag_phase(N, 2);
-  Eigen::MatrixXd dc_mag_phase(dc_samples.size(), 2);
+  int N = frame.size(), M = dc_samples.size();
+
+  Eigen::ArrayXcd frame_xcd(N);
+  Eigen::ArrayXcd dc_xcd(M);
 #pragma omp parallel for
   for (int i = 0; i < N; i++) {
-    mag_phase(i, 0) = std::abs(frame[i]);
-    mag_phase(i, 1) = std::arg(frame[i]);
+    frame_xcd(i) = frame[i];
   }
 #pragma omp parallel for
-  for (int i = 0; i < dc_samples.size(); i++) {
-    dc_mag_phase(i, 0) = std::abs(dc_samples[i]);
-    dc_mag_phase(i, 1) = std::arg(dc_samples[i]);
+  for (int i = 0; i < M; i++) {
+    dc_xcd(i) = dc_samples[i];
   }
 
   // 计算 DC 的相位方差和幅度方差
-  double mag_mean = dc_mag_phase.col(0).mean();
-  double mag_var = (dc_mag_phase.col(0).array() - mag_mean).square().sum() / (dc_mag_phase.rows() - 1);
-
-  double phase_mean = dc_mag_phase.col(1).mean();
-  double phase_var = (dc_mag_phase.col(1).array() - phase_mean).square().sum() / (dc_mag_phase.rows() - 1);
+  double phase_var = (dc_xcd * std::conj(dc_est)).arg().square().sum() / M;
+  double mag_var = (dc_xcd.abs() - std::abs(dc_est)).square().sum() / M;
 
   double scale = mag_var / phase_var;
 
   // 计算距离矩阵
-  auto mag_diff = mag_phase.col(0).replicate(1, N) - mag_phase.col(0).transpose().replicate(N, 1);
-  auto phase_diff = mag_phase.col(1).replicate(1, N) - mag_phase.col(1).transpose().replicate(N, 1);
-  auto dists = (mag_diff.array().square() + scale * phase_diff.array().square()).sqrt();
+  auto mag_diff = frame_xcd.replicate(1, N).abs() - frame_xcd.transpose().replicate(N, 1).abs();
+  auto phase_diff = (frame_xcd.replicate(1, N) * frame_xcd.transpose().replicate(N, 1).conjugate()).arg();
+  auto dists = (mag_diff.square() + scale * phase_diff.square()).sqrt();
 
   // 自动计算截断距离 dc
   int position = static_cast<int>(N * (N - 1) * 0.02);
@@ -111,13 +106,16 @@ gr_complex extract_inter_channel(const std::deque<gr_complex> &frame, const std:
 
   // 使用高斯分布进行聚类
   std::vector<int> labels(N);
+  // 相位噪声和幅度噪声应该符合高斯分布
   auto norm = BivariateNormal(mag_var, phase_var);
 #pragma omp parallel for reduction(+ : centers[ : 4], nsamples[ : 4])
   for (int i = 0; i < N; i++) {
     double max_pdf = -1;
     int label = -1;
     for (int j = 0; j < 4; j++) {
-      auto p = norm.pdf(mag_phase.row(i), mag_phase.row(centers_index[j]));
+      auto mag_diff = std::abs(frame_xcd[i]) - std::abs(frame_xcd[centers_index[j]]);
+      auto phase_diff = std::arg(frame_xcd[i] * std::conj(frame_xcd[centers_index[j]]));
+      auto p = norm.pdf({mag_diff, phase_diff});
       if (p > max_pdf) {
         max_pdf = p;
         label = j;
