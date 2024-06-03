@@ -9,8 +9,8 @@
 # Author: Yachen Mao
 # GNU Radio version: 3.10.10.0
 
+from command_gen import reader_cmd_gen
 from gnuradio import blocks
-import pmt
 from gnuradio import gr
 from gnuradio.filter import firdes
 from gnuradio.fft import window
@@ -27,7 +27,7 @@ import time
 
 class rfid_query(gr.top_block):
 
-    def __init__(self, duration=0.1, freq=900e6, out='rx.cf32', rx_gain=0, tx_gain=20):
+    def __init__(self, duration=0.1, freq=900e6, out='rx.cf32', rx_gain=0, tag_filter='all', tx_gain=20):
         gr.top_block.__init__(self, "Query RFID", catch_exceptions=True)
 
         ##################################################
@@ -37,6 +37,7 @@ class rfid_query(gr.top_block):
         self.freq = freq
         self.out = out
         self.rx_gain = rx_gain
+        self.tag_filter = tag_filter
         self.tx_gain = tx_gain
 
         ##################################################
@@ -79,12 +80,9 @@ class rfid_query(gr.top_block):
         self.uhd_usrp_sink_0.set_center_freq(freq, 0)
         self.uhd_usrp_sink_0.set_antenna("TX/RX", 0)
         self.uhd_usrp_sink_0.set_gain(tx_gain, 0)
-        self.blocks_skiphead_0 = blocks.skiphead(gr.sizeof_gr_complex*1, (int(samp_rate * 0.003)))
+        self.blocks_vector_source_x_0 = blocks.vector_source_c(reader_cmd_gen(samp_rate, tag_filter), True, 1, [])
         self.blocks_head_0_0 = blocks.head(gr.sizeof_gr_complex*1, (int(samp_rate * (duration + 0.2))))
         self.blocks_head_0 = blocks.head(gr.sizeof_gr_complex*1, (int(samp_rate * duration)))
-        self.blocks_float_to_complex_0 = blocks.float_to_complex(1)
-        self.blocks_file_source_0 = blocks.file_source(gr.sizeof_float*1, 'data/reader.f32', True, 0, 0)
-        self.blocks_file_source_0.set_begin_tag(pmt.PMT_NIL)
         self.blocks_file_sink_0 = blocks.file_sink(gr.sizeof_gr_complex*1, out, False)
         self.blocks_file_sink_0.set_unbuffered(False)
 
@@ -92,12 +90,10 @@ class rfid_query(gr.top_block):
         ##################################################
         # Connections
         ##################################################
-        self.connect((self.blocks_file_source_0, 0), (self.blocks_float_to_complex_0, 0))
-        self.connect((self.blocks_float_to_complex_0, 0), (self.blocks_head_0_0, 0))
         self.connect((self.blocks_head_0, 0), (self.blocks_file_sink_0, 0))
         self.connect((self.blocks_head_0_0, 0), (self.uhd_usrp_sink_0, 0))
-        self.connect((self.blocks_skiphead_0, 0), (self.blocks_head_0, 0))
-        self.connect((self.uhd_usrp_source_0, 0), (self.blocks_skiphead_0, 0))
+        self.connect((self.blocks_vector_source_x_0, 0), (self.blocks_head_0_0, 0))
+        self.connect((self.uhd_usrp_source_0, 0), (self.blocks_head_0, 0))
 
 
     def get_duration(self):
@@ -131,6 +127,13 @@ class rfid_query(gr.top_block):
         self.uhd_usrp_source_0.set_gain(self.rx_gain, 0)
         self.uhd_usrp_source_0.set_gain(self.rx_gain, 1)
 
+    def get_tag_filter(self):
+        return self.tag_filter
+
+    def set_tag_filter(self, tag_filter):
+        self.tag_filter = tag_filter
+        self.blocks_vector_source_x_0.set_data(reader_cmd_gen(self.samp_rate, self.tag_filter), [])
+
     def get_tx_gain(self):
         return self.tx_gain
 
@@ -145,6 +148,7 @@ class rfid_query(gr.top_block):
         self.samp_rate = samp_rate
         self.blocks_head_0.set_length((int(self.samp_rate * self.duration)))
         self.blocks_head_0_0.set_length((int(self.samp_rate * (self.duration + 0.2))))
+        self.blocks_vector_source_x_0.set_data(reader_cmd_gen(self.samp_rate, self.tag_filter), [])
         self.uhd_usrp_sink_0.set_samp_rate(self.samp_rate)
         self.uhd_usrp_source_0.set_samp_rate(self.samp_rate)
 
@@ -165,6 +169,9 @@ def argument_parser():
         "--rx-gain", dest="rx_gain", type=intx, default=0,
         help="Set Rx Gain [default=%(default)r]")
     parser.add_argument(
+        "-f", "--tag-filter", dest="tag_filter", type=str, default='all',
+        help="Set Filter [default=%(default)r]")
+    parser.add_argument(
         "--tx-gain", dest="tx_gain", type=intx, default=20,
         help="Set Tx Gain [default=%(default)r]")
     return parser
@@ -173,7 +180,7 @@ def argument_parser():
 def main(top_block_cls=rfid_query, options=None):
     if options is None:
         options = argument_parser().parse_args()
-    tb = top_block_cls(duration=options.duration, freq=options.freq, out=options.out, rx_gain=options.rx_gain, tx_gain=options.tx_gain)
+    tb = top_block_cls(duration=options.duration, freq=options.freq, out=options.out, rx_gain=options.rx_gain, tag_filter=options.tag_filter, tx_gain=options.tx_gain)
 
     def sig_handler(sig=None, frame=None):
         tb.stop()

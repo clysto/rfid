@@ -63,44 +63,6 @@ blocks:
     coordinate: [568, 340.0]
     rotation: 0.0
     state: enabled
-- name: blocks_file_source_0
-  id: blocks_file_source
-  parameters:
-    affinity: ''
-    alias: ''
-    begin_tag: pmt.PMT_NIL
-    comment: ''
-    file: data/reader.f32
-    length: '0'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    offset: '0'
-    repeat: 'True'
-    type: float
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [56, 176.0]
-    rotation: 0.0
-    state: enabled
-- name: blocks_float_to_complex_0
-  id: blocks_float_to_complex
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [224, 196.0]
-    rotation: 0.0
-    state: enabled
 - name: blocks_head_0
   id: blocks_head
   parameters:
@@ -116,7 +78,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [416, 348.0]
+    coordinate: [392, 348.0]
     rotation: 0.0
     state: enabled
 - name: blocks_head_0_0
@@ -137,23 +99,25 @@ blocks:
     coordinate: [392, 212.0]
     rotation: 0.0
     state: enabled
-- name: blocks_skiphead_0
-  id: blocks_skiphead
+- name: blocks_vector_source_x_0
+  id: blocks_vector_source_x
   parameters:
     affinity: ''
     alias: ''
     comment: ''
     maxoutbuf: '0'
     minoutbuf: '0'
-    num_items: int(samp_rate * 0.003)
+    repeat: 'True'
+    tags: '[]'
     type: complex
+    vector: reader_cmd_gen(samp_rate, tag_filter)
     vlen: '1'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [272, 348.0]
-    rotation: 0.0
+    coordinate: [40, 204.0]
+    rotation: 0
     state: enabled
 - name: duration
   id: parameter
@@ -189,6 +153,19 @@ blocks:
     coordinate: [560, 8.0]
     rotation: 0.0
     state: enabled
+- name: import_0
+  id: import
+  parameters:
+    alias: ''
+    comment: ''
+    imports: from command_gen import reader_cmd_gen
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [720, 8.0]
+    rotation: 0
+    state: enabled
 - name: out
   id: parameter
   parameters:
@@ -221,6 +198,23 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [224, 8.0]
+    rotation: 0.0
+    state: enabled
+- name: tag_filter
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Filter
+    short_id: f
+    type: str
+    value: all
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [648, 8.0]
     rotation: 0.0
     state: enabled
 - name: tx_gain
@@ -955,12 +949,10 @@ blocks:
     state: enabled
 
 connections:
-- [blocks_file_source_0, '0', blocks_float_to_complex_0, '0']
-- [blocks_float_to_complex_0, '0', blocks_head_0_0, '0']
 - [blocks_head_0, '0', blocks_file_sink_0, '0']
 - [blocks_head_0_0, '0', uhd_usrp_sink_0, '0']
-- [blocks_skiphead_0, '0', blocks_head_0, '0']
-- [uhd_usrp_source_0, '0', blocks_skiphead_0, '0']
+- [blocks_vector_source_x_0, '0', blocks_head_0_0, '0']
+- [uhd_usrp_source_0, '0', blocks_head_0, '0']
 
 metadata:
   file_format: 1
