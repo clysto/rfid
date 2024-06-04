@@ -1,13 +1,13 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import seaborn as sns
 from scipy.stats import iqr
-
 
 sns.set_theme()
 
 
-def outliers(data, m=4):
+def outliers(data, m=2):
     q1 = np.percentile(data, 25)
     q3 = np.percentile(data, 75)
     iqr_ = iqr(data)
@@ -15,56 +15,83 @@ def outliers(data, m=4):
     return np.argwhere(mask == 0).flatten()
 
 
-for i in range(1, 4):
-    data12 = np.load(f"data/1-2#{i}.npz")
-    data32 = np.load(f"data/3-2#{i}.npz")
+datas_path = [
+    "data/20240604191302",
+    "data/20240604191910",
+    "data/20240604192125",
+    "data/20240604192221",
+    "data/20240604192407",
+    "data/20240604192532",
+    "data/20240604192646",
+    "data/20240604192807",
+    "data/20240604192925",
+]
 
-    frames12 = data12["frames"]
-    frames32 = data32["frames"]
+distances = [4, 5, 6, 7, 8, 9, 10, 11, 12]
 
-    frames_dc12 = data12["frames_dc"]
-    frames_dc32 = data32["frames_dc"]
+df = None
+
+for path, distance in zip(datas_path, distances):
+    data12 = np.load(f"{path}/1-2.npz")
+    data13 = np.load(f"{path}/1-3.npz")
+    data23 = np.load(f"{path}/2-3.npz")
 
     inter_est12 = data12["inter_est"]
-    inter_est32 = data32["inter_est"]
+    inter_est13 = data13["inter_est"]
+    inter_est23 = data23["inter_est"]
 
     outliers12 = outliers(np.abs(inter_est12))
-    outliers32 = outliers(np.abs(inter_est32))
+    outliers13 = outliers(np.abs(inter_est13))
+    outliers23 = outliers(np.abs(inter_est23))
 
-    dc_time = np.arange(0, frames_dc12.shape[1])
-    rn16_time = np.arange(0, frames12.shape[1]) + len(dc_time)
+    inter_est12_filtered = np.delete(inter_est12, outliers12)
+    inter_est13_filtered = np.delete(inter_est13, outliers13)
+    inter_est23_filtered = np.delete(inter_est23, outliers23)
 
-    # plt.figure()
-    # plt.plot(dc_time, frames_dc12[0].real, color="C0", alpha=0.5)
-    # plt.plot(dc_time, frames_dc12[0].imag, "--", color="C0", alpha=0.5)
-
-    # plt.plot(dc_time, frames_dc32[0].real, color="C1", alpha=0.5)
-    # plt.plot(dc_time, frames_dc32[0].imag, "--", color="C1", alpha=0.5)
-
-    # plt.plot(rn16_time, frames12[0].real, color="C0")
-    # plt.plot(rn16_time, frames12[0].imag, "--", color="C0")
-
-    # plt.plot(rn16_time, frames32[0].real, color="C1")
-    # plt.plot(rn16_time, frames32[0].imag, "--", color="C1")
-    # plt.show(block=False)
-
-    plt.figure()
-    plt.ylim(0, 0.02)
-    plt.plot(np.abs(inter_est12), label="Tag1-Tag2")
-    plt.plot(np.abs(inter_est32), label="Tag3-Tag2")
-    plt.plot(outliers12, np.abs(inter_est12[outliers12]), "o", color="r")
-    plt.plot(outliers32, np.abs(inter_est32[outliers32]), "o", color="r")
-    plt.legend()
-    plt.show(block=False)
-
-    plt.figure()
-    sns.kdeplot(
-        np.delete(np.abs(inter_est12), outliers12), label="Tag1-Tag2", fill=True
+    df_tmp = pd.DataFrame(
+        {
+            "Inter-channel magnitude": np.hstack(
+                (
+                    np.abs(inter_est12_filtered),
+                    np.abs(inter_est13_filtered),
+                    np.abs(inter_est23_filtered),
+                )
+            ),
+            "Inter-channel phase": np.hstack(
+                (
+                    np.angle(inter_est12_filtered),
+                    np.angle(inter_est13_filtered),
+                    np.angle(inter_est23_filtered),
+                )
+            ),
+            "Channel": ["Tag1-Tag2"] * len(inter_est12_filtered)
+            + ["Tag1-Tag3"] * len(inter_est13_filtered)
+            + ["Tag2-Tag3"] * len(inter_est23_filtered),
+            "Distance": [f"{distance}cm"]
+            * (
+                len(inter_est12_filtered)
+                + len(inter_est13_filtered)
+                + len(inter_est23_filtered)
+            ),
+        }
     )
-    sns.kdeplot(
-        np.delete(np.abs(inter_est32), outliers32), label="Tag3-Tag2", fill=True
-    )
-    plt.legend()
-    plt.show(block=False)
 
+    df = pd.concat([df, df_tmp])
+
+plt.figure()
+sns.boxplot(
+    x="Distance",
+    y="Inter-channel magnitude",
+    hue="Channel",
+    data=df,
+)
+plt.show(block=False)
+
+plt.figure()
+sns.boxplot(
+    x="Distance",
+    y="Inter-channel phase",
+    hue="Channel",
+    data=df,
+)
 plt.show()
