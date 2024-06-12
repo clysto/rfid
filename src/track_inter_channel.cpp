@@ -3,13 +3,15 @@
 #include <gnuradio/top_block.h>
 
 #include <iostream>
+#include <vector>
 
 #include "extract_inter_channel.hpp"
 #include "rfid_block.hpp"
 
 void p(const std::deque<gr_complex> &frame, const std::deque<gr_complex> &dc_samples, gr_complex dc_est,
        gr_complex h_est) {
-  auto s_int = extract_inter_channel(frame, dc_samples, dc_est, h_est);
+  std::vector<int> labels;
+  auto s_int = extract_inter_channel(frame, dc_samples, dc_est, h_est, labels);
   std::cout << "s_int: mag=" << std::abs(s_int) << " phase=" << std::arg(s_int) << std::endl;
 }
 

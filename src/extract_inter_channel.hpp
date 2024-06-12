@@ -16,5 +16,5 @@ class BivariateNormal {
   double norm_const;
 };
 
-gr_complex extract_inter_channel(const std::deque<gr_complex> &frame, const std::deque<gr_complex> &dc_samples, gr_complex dc_est,
-                     gr_complex h_est);
+gr_complex extract_inter_channel(const std::deque<gr_complex> &frame, const std::deque<gr_complex> &dc_samples,
+                                 gr_complex dc_est, gr_complex h_est, std::vector<int> &labels);

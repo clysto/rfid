@@ -9,6 +9,7 @@
 #include "rfid_block.hpp"
 
 std::vector<gr_complex> frames;
+std::vector<int> frames_labels;
 std::vector<gr_complex> frames_dc;
 std::vector<gr_complex> inter_est;
 
@@ -19,7 +20,9 @@ void p(const std::deque<gr_complex> &frame, const std::deque<gr_complex> &dc_sam
   }
   frames_dc.insert(frames_dc.end(), dc_samples.begin(), dc_samples.end());
   frames.insert(frames.end(), frame.begin(), frame.end());
-  auto s_int = extract_inter_channel(frame, dc_samples, dc_est, h_est);
+  std::vector<int> labels;
+  auto s_int = extract_inter_channel(frame, dc_samples, dc_est, h_est, labels);
+  frames_labels.insert(frames_labels.end(), labels.begin(), labels.end());
   inter_est.push_back(s_int);
 }
 
@@ -41,6 +44,8 @@ int main(int argc, char *argv[]) {
   cnpy::npz_save(argv[2], "frames_dc", frames_dc.data(),
                  {frames_dc.size() / (config::N_T1 / 2), static_cast<size_t>(config::N_T1 / 2)}, "a");
   cnpy::npz_save(argv[2], "inter_est", inter_est.data(), {inter_est.size()}, "a");
+  cnpy::npz_save(argv[2], "labels", frames_labels.data(),
+                 {frames_labels.size() / config::N_RN16_FRAME, static_cast<size_t>(config::N_RN16_FRAME)}, "a");
 
   return 0;
 }

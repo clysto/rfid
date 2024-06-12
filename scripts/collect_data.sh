@@ -37,7 +37,7 @@ mkdir -p $path
 echo "$note" >"$path/note.txt"
 
 for i in "${!filters[@]}"; do
-    rfid_query.py --duration 0.6 --rx-gain 0 --tx-gain 30 --freq 900e6 -f "${filters[$i]}" \
+    gum spin --title="Collecting $path/${names[$i]}.cf32" -- rfid_query.py --duration 0.6 --rx-gain 0 --tx-gain 30 --freq 900e6 -f "${filters[$i]}" \
         --out "$path/${names[$i]}.cf32"
 done
 

@@ -102,10 +102,25 @@ def cluster_frame(frame: np.ndarray, cov: np.ndarray, plot=False):
     for i in range(len(centers)):
         rvs.append(multivariate_normal([np.abs(centers[i]), np.angle(centers[i])], cov))
 
+    # xx, yy = np.meshgrid(np.linspace(0.38, 0.5, 500), np.linspace(-1.8, -1.7, 500))
+    # pdf = np.zeros((500, 500, 4))
+    # for i in range(4):
+    #     pdf[:, :, i] = rvs[i].pdf(np.dstack((xx, yy)))
+
+    # print(rvs[2].pdf([0.45, -1.999]))
+    # print(rvs[2].pdf([0.444, -1.98]))
+    # if plot:
+    #     plt.figure()
+    #     plt.xlabel("In-phase")
+    #     plt.ylabel("Quadrature")
+    #     plt.contourf(xx, yy, pdf[:, :, 2], cmap="Blues")
+    #     plt.colorbar()
+    #     plt.show(block=False)
+
     labels = np.full(N, -1, dtype=np.intp)
     for i in range(len(frame)):
         pdf = [rvs[j].pdf([np.abs(frame[i]), np.angle(frame[i])]) for j in range(4)]
-        if np.max(pdf) > 1:
+        if np.max(pdf) > 150000:
             labels[i] = np.argmax(pdf)
 
     return labels, index_centers
@@ -131,6 +146,7 @@ def process_one_frame(frame, dc, plot=False):
     dc_mean = np.mean(dc)
     mag_var = np.var(np.abs(dc))
     phase_var = np.var(np.angle(dc))
+    print(mag_var, phase_var)
     cov = np.array([[mag_var, 0], [0, phase_var]])
 
     frame_start, h_est = frame_sync(frame - dc_mean)
@@ -154,16 +170,13 @@ def process_one_frame(frame, dc, plot=False):
             frame[labels == -1].real,
             frame[labels == -1].imag,
             color="gray",
-            marker=".",
-            alpha=0.2,
         )
         for i in range(4):
             plt.scatter(
                 frame[labels == i].real,
                 frame[labels == i].imag,
-                marker=".",
-                alpha=0.2,
             )
+        plt.scatter(h_est.real, h_est.imag, color="black")
         plt.scatter(centers_sorted.real, centers_sorted.imag, color="blue")
         plt.scatter(center_expected.real, center_expected.imag, color="red")
         plt.show()

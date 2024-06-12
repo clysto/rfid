@@ -25,7 +25,7 @@ double BivariateNormal::pdf(const Eigen::Vector2d &x) const {
 }
 
 gr_complex extract_inter_channel(const std::deque<gr_complex> &frame, const std::deque<gr_complex> &dc_samples,
-                                 gr_complex dc_est, gr_complex h_est) {
+                                 gr_complex dc_est, gr_complex h_est, std::vector<int> &labels) {
   int N = frame.size(), M = dc_samples.size();
 
   Eigen::ArrayXcd frame_xcd(N);
@@ -112,7 +112,8 @@ gr_complex extract_inter_channel(const std::deque<gr_complex> &frame, const std:
   int nsamples[4] = {0, 0, 0, 0};
 
   // 使用高斯分布进行聚类
-  std::vector<int> labels(N);
+  labels.clear();
+  labels.resize(N);
   // 相位噪声和幅度噪声应该符合高斯分布
   auto norm = BivariateNormal(mag_var, phase_var);
 #pragma omp parallel for reduction(+ : centers[ : 4], nsamples[ : 4])

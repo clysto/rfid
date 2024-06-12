@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import signal
+from scipy.stats import iqr
 
 
 def extract_rn16_frames(sig, n_max_gap, n_t1, n_rn16):
@@ -48,3 +49,21 @@ def frame_sync(frame):
     frame_start = max(0, np.argmax(corr) - 6 * 25)
     h_est = np.mean(frame[frame_start:][np.argwhere(preamble == 1)])
     return frame_start, h_est
+
+
+def arg_outliers(data, m=2):
+    """
+    Find the indices of outliers in a given dataset.
+
+    Parameters:
+    data (array-like): The dataset to find outliers in.
+    m (float, optional): The number of iqrs to consider as the threshold for outliers. Defaults to 2.
+
+    Returns:
+    numpy.ndarray: An array of indices corresponding to the outliers in the dataset.
+    """
+    q1 = np.percentile(data, 25)
+    q3 = np.percentile(data, 75)
+    iqr_ = iqr(data)
+    mask = (data > q1 - m * iqr_) & (data < q3 + m * iqr_)
+    return np.argwhere(mask == 0).flatten()
